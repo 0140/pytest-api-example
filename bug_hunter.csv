@@ -1,0 +1,8 @@
+ID,File,Location,Description,Severity
+1,schemas.py,Line 9,"'name' field type is 'integer' instead of 'string' - pet name should be a string not a number",High
+2,app.py,Line 38,"Pet with ID 0 exists in the data - using 0 as a pet_id returns 200 not 404 which can cause confusion as 0 is commonly treated as null/invalid",Low
+3,app.py,Line 101,"Missing f-string prefix in error message - '{status}' is never interpolated so the actual status value is not shown in the error response",Medium
+4,app.py,Line 100-102,"Wrong order of validation - enum check runs before empty/missing status check causing a 400 error instead of handling missing status gracefully",Medium
+5,app.py,Line 157-164,"Dead code - the else block for invalid status in PATCH /store/order is unreachable because all 3 valid statuses are handled above meaning invalid statuses are saved without error",High
+6,app.py,Line 66-77,"POST /pets/ does not enforce enum validation on input - Flask-RESTX enums only apply to output marshalling so pets with invalid types like 'dogg' can be created",High
+

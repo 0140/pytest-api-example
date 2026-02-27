@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pytest Test Runner</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1e1e2e;color:#cdd6f4;min-height:100vh}
+    header{background:#181825;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #313244}
+    header h1{font-size:1.4rem;color:#cba6f7}
+    nav a{color:#89b4fa;text-decoration:none;font-size:.9rem;padding:6px 14px;border-radius:6px;border:1px solid #313244;transition:background .2s}
+    nav a:hover{background:#313244}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    .summary{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+    .card{background:#181825;border-radius:8px;padding:12px 20px;flex:1;min-width:90px;text-align:center;border:1px solid #313244}
+    .card .count{font-size:1.8rem;font-weight:bold}
+    .card .label{font-size:.75rem;color:#a6adc8;margin-top:4px}
+    .c-total{color:#cba6f7}.c-passed{color:#a6e3a1}.c-failed{color:#f38ba8}.c-skipped{color:#f9e2af}.c-pending{color:#89b4fa}
+    .toolbar{display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+    .spacer{flex:1}
+    .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:500;transition:opacity .2s}
+    .btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-primary{background:#cba6f7;color:#1e1e2e}
+    .btn-secondary{background:#313244;color:#cdd6f4}
+    .progress-bar{height:5px;background:#313244;border-radius:3px;margin-bottom:16px;overflow:hidden;display:none}
+    .progress-fill{height:100%;background:#cba6f7;width:0%;transition:width .3s}
+    .test-list{background:#181825;border-radius:10px;border:1px solid #313244;overflow:hidden}
+    .list-head{display:grid;grid-template-columns:40px 1fr 120px;padding:10px 16px;background:#11111b;font-size:.78rem;color:#a6adc8;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #313244}
+    .test-item{display:grid;grid-template-columns:40px 1fr 120px;align-items:center;padding:11px 16px;border-bottom:1px solid #1e1e2e;transition:background .15s}
+    .test-item:hover{background:#252535}.test-item:last-child{border-bottom:none}
+    .test-item input[type=checkbox]{width:16px;height:16px;accent-color:#cba6f7;cursor:pointer}
+    .test-name{font-size:.85rem;font-family:monospace;word-break:break-all}
+    .test-file{color:#89b4fa}.test-case{color:#cdd6f4}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+    .badge-pending{background:#1e3a5f;color:#89b4fa}
+    .badge-running{background:#3a3a1e;color:#f9e2af;animation:pulse 1s infinite}
+    .badge-passed{background:#1e3a2e;color:#a6e3a1}
+    .badge-failed{background:#3a1e1e;color:#f38ba8}
+    .badge-skipped{background:#3a2e1e;color:#f9e2af}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .loading{text-align:center;padding:40px;color:#a6adc8}
+    .status-bar{margin-bottom:12px;font-size:.85rem;color:#a6adc8;min-height:20px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧪 Pytest Test Runner</h1>
+    <nav><a href="/report" target="_blank">📄 View Report</a></nav>
+  </header>
+  <div class="container">
+    <div class="summary">
+      <div class="card"><div class="count c-total" id="cnt-total">0</div><div class="label">Total</div></div>
+      <div class="card"><div class="count c-passed" id="cnt-passed">0</div><div class="label">Passed</div></div>
+      <div class="card"><div class="count c-failed" id="cnt-failed">0</div><div class="label">Failed</div></div>
+      <div class="card"><div class="count c-skipped" id="cnt-skipped">0</div><div class="label">Skipped</div></div>
+      <div class="card"><div class="count c-pending" id="cnt-pending">0</div><div class="label">Pending</div></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-secondary" onclick="selectAll()">☑ Select All</button>
+      <button class="btn btn-secondary" onclick="deselectAll()">☐ Deselect All</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="run-btn" onclick="runTests()">▶ Run Selected</button>
+    </div>
+    <div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill"></div></div>
+    <div class="status-bar" id="status-bar"></div>
+    <div class="test-list">
+      <div class="list-head"><span></span><span>Test</span><span>Status</span></div>
+      <div id="test-body"><div class="loading">Loading tests...</div></div>
+    </div>
+  </div>
+  <script>
+    let tests=[], statuses={}, es=null, total=0;
+    async function loadTests(){
+      const r=await fetch('/api/tests'); tests=await r.json();
+      statuses={}; tests.forEach(t=>statuses[t]='pending');
+      render(); updateSummary();
+    }
+    function badgeId(t){return 'b_'+t.replace(/[^a-zA-Z0-9]/g,'_')}
+    function render(){
+      const body=document.getElementById('test-body');
+      if(!tests.length){body.innerHTML='<div class="loading">No tests found.</div>';return;}
+      body.innerHTML=tests.map(t=>{
+        const p=t.split('::'), file=p[0], tc=p.slice(1).join('::');
+        return `<div class="test-item">
+          <input type="checkbox" class="cb" value="${t}" checked>
+          <div class="test-name"><span class="test-file">${file}</span>::<span class="test-case">${tc}</span></div>
+          <div><span class="badge badge-pending" id="${badgeId(t)}">${statuses[t]}</span></div>
+        </div>`;
+      }).join('');
+      document.getElementById('cnt-total').textContent=tests.length;
+    }
+    function setBadge(t,s){
+      const el=document.getElementById(badgeId(t));
+      if(el){el.className=`badge badge-${s}`;el.textContent=s;}
+      statuses[t]=s; updateSummary();
+    }
+    function updateSummary(){
+      const c={passed:0,failed:0,skipped:0,pending:0,running:0};
+      Object.values(statuses).forEach(s=>{if(c[s]!==undefined)c[s]++;});
+      document.getElementById('cnt-passed').textContent=c.passed;
+      document.getElementById('cnt-failed').textContent=c.failed;
+      document.getElementById('cnt-skipped').textContent=c.skipped;
+      document.getElementById('cnt-pending').textContent=c.pending+c.running;
+    }
+    async function runTests(){
+      const sel=[...document.querySelectorAll('.cb:checked')].map(cb=>cb.value);
+      if(!sel.length){alert('Select at least one test to run.');return;}
+      document.getElementById('run-btn').disabled=true;
+      document.getElementById('prog-bar').style.display='block';
+      document.getElementById('prog-fill').style.width='0%';
+      document.getElementById('status-bar').textContent='Running tests...';
+      total=sel.length; let done=0;
+      sel.forEach(t=>setBadge(t,'running'));
+      await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tests:sel})});
+      if(es)es.close();
+      es=new EventSource('/api/stream');
+      es.onmessage=e=>{
+        const d=JSON.parse(e.data);
+        if(d.type==='result'){
+          setBadge(d.test,d.status); done++;
+          document.getElementById('prog-fill').style.width=`${(done/total)*100}%`;
+          document.getElementById('status-bar').textContent=`Running... ${done}/${total} completed`;
+        } else if(d.type==='done'){
+          es.close(); document.getElementById('run-btn').disabled=false;
+          document.getElementById('status-bar').textContent=`✅ Done! ${done} tests completed. Report updated.`;
+        }
+      };
+    }
+    function selectAll(){document.querySelectorAll('.cb').forEach(cb=>cb.checked=true);}
+    function deselectAll(){document.querySelectorAll('.cb').forEach(cb=>cb.checked=false);}
+    loadTests();
+  </script>
+</body>
+</html>
+

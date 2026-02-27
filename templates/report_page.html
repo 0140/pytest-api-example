@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Test Report</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1e1e2e;display:flex;flex-direction:column;height:100vh}
+    header{background:#181825;padding:12px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #313244;flex-shrink:0}
+    header h1{color:#cba6f7;font-size:1.2rem}
+    header a{color:#89b4fa;text-decoration:none;font-size:.9rem;padding:6px 12px;border-radius:6px;border:1px solid #313244;transition:background .2s}
+    header a:hover{background:#313244}
+    .no-report{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#a6adc8;gap:12px}
+    .no-report p{font-size:1rem}
+    iframe{flex:1;border:none;background:white}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← Back to Test Runner</a>
+    <h1>📄 Test Report</h1>
+  </header>
+  <div id="content" style="flex:1;display:flex;flex-direction:column">
+    <div class="no-report" id="no-report" style="display:none">
+      <span style="font-size:3rem">📭</span>
+      <p>No report found. Run some tests first!</p>
+      <a href="/" style="color:#cba6f7;text-decoration:none;border:1px solid #cba6f7;padding:8px 16px;border-radius:6px">Go Run Tests</a>
+    </div>
+    <iframe id="report-frame" src="/report-raw" onload="checkReport()" style="flex:1;border:none;background:white"></iframe>
+  </div>
+  <script>
+    function checkReport(){
+      const frame=document.getElementById('report-frame');
+      try{
+        if(frame.contentDocument&&frame.contentDocument.title===''){
+          document.getElementById('no-report').style.display='flex';
+          frame.style.display='none';
+        }
+      }catch(e){}
+    }
+  </script>
+</body>
+</html>
+
